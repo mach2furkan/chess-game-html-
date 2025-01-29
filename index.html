@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2D Chess Game</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    header {
+      background-color: #005a9c;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      width: 100%;
+    }
+    nav {
+      display: flex;
+      justify-content: center;
+      background-color: #003366;
+      padding: 10px 0;
+      width: 100%;
+    }
+    nav a {
+      color: white;
+      padding: 10px 20px;
+      text-decoration: none;
+      font-size: 18px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    canvas {
+      display: block;
+      margin: 20px auto;
+      border: 2px solid #ccc;
+      background-color: #87CEEB;
+    }
+    footer {
+      text-align: center;
+      padding: 20px;
+      background-color: #003366;
+      color: white;
+      width: 100%;
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .controls button {
+      padding: 10px 20px;
+      background-color: #005a9c;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .controls button:hover {
+      background-color: #003366;
+    }
+    .move-history {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #ecf0f1;
+      border-radius: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>2D Chess Game</h1>
+  <p>Welcome to the ultimate 2D Chess experience!</p>
+</header>
+<nav>
+  <a href="#introduction">Introduction</a>
+  <a href="#game">Play Game</a>
+  <a href="#rules">Rules</a>
+</nav>
+
+<div class="container" id="introduction">
+  <h2>Introduction to Chess</h2>
+  <p>Chess is a strategic board game that involves two players, each controlling an army of 16 pieces. The game is played on an 8x8 grid, making up 64 squares in total. The objective is to checkmate the opponent’s king, meaning the king is under attack and has no legal moves to escape the threat.</p>
+  <p>Each player starts with:</p>
+  <ul>
+    <li>1 King</li>
+    <li>1 Queen</li>
+    <li>2 Rooks</li>
+    <li>2 Knights</li>
+    <li>2 Bishops</li>
+    <li>8 Pawns</li>
+  </ul>
+</div>
+
+<div class="container" id="game">
+  <h2>Play 2D Chess</h2>
+  <canvas id="gameCanvas" width="600" height="600"></canvas>
+  <div class="controls">
+    <button id="restartButton">Restart Game</button>
+    <button id="undoButton">Undo Move</button>
+    <button id="toggleThemeButton">Toggle Theme</button>
+  </div>
+  <div class="move-history">
+    <h3>Move History</h3>
+    <ul id="moveLog"></ul>
+  </div>
+</div>
+
+<div class="container" id="rules">
+  <h2>Chess Rules</h2>
+  <h3>Chess Pieces and Their Movements</h3>
+  <ul>
+    <li><strong>King:</strong> Moves one square in any direction. Special move: Castling.</li>
+    <li><strong>Queen:</strong> Moves any number of squares in any direction.</li>
+    <li><strong>Rook:</strong> Moves any number of squares horizontally or vertically.</li>
+    <li><strong>Bishop:</strong> Moves any number of squares diagonally.</li>
+    <li><strong>Knight:</strong> Moves in an "L" shape (two squares in one direction, then one square perpendicular).</li>
+    <li><strong>Pawn:</strong> Moves forward one square, captures diagonally. Special moves: En passant, Promotion.</li>
+  </ul>
+  <h3>Basic Rules</h3>
+  <ul>
+    <li><strong>Check:</strong> The king is under attack and must be protected.</li>
+    <li><strong>Checkmate:</strong> The king is in check and cannot escape.</li>
+    <li><strong>Stalemate:</strong> No legal moves, but the king is not in check.</li>
+  </ul>
+</div>
+
+<footer>
+  <p>&copy; 2025 2D Chess Game. All rights reserved.</p>
+</footer>
+
+<audio id="chessMusic" loop autoplay>
+  <source src="https://www.soundjay.com/misc/sounds/chess-music.mp3" type="audio/mpeg">
+  Your browser does not support the audio element.
+</audio>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const moveLog = document.getElementById('moveLog');
+  const restartButton = document.getElementById('restartButton');
+  const undoButton = document.getElementById('undoButton');
+  const toggleThemeButton = document.getElementById('toggleThemeButton');
+  const chessMusic = document.getElementById('chessMusic');
+
+  const boardSize = 8;
+  const squareSize = canvas.width / boardSize;
+  let board = [];
+  let selectedPiece = null;
+  let turn = 'white';
+  let moveHistory = [];
+
+  // Initialize the board
+  function initBoard() {
+    board = Array.from({ length: boardSize }, () => Array(boardSize).fill(null));
+    placePieces();
+    drawBoard();
+    updateMoveLog();
+  }
+
+  // Place pieces on the board
+  function placePieces() {
+    const piecesOrder = ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook'];
+    for (let col = 0; col < boardSize; col++) {
+      board[0][col] = { type: piecesOrder[col], color: 'black' };
+      board[1][col] = { type: 'pawn', color: 'black' };
+      board[6][col] = { type: 'pawn', color: 'white' };
+      board[7][col] = { type: piecesOrder[col], color: 'white' };
+    }
+  }
+
+  // Draw the board
+  function drawBoard() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let row = 0; row < boardSize; row++) {
+      for (let col = 0; col < boardSize; col++) {
+        const color = (row + col) % 2 === 0 ? '#f0d9b5' : '#b58863';
+        ctx.fillStyle = color;
+        ctx.fillRect(col * squareSize, row * squareSize, squareSize, squareSize);
+
+        if (selectedPiece && isValidMove(board[selectedPiece.row][selectedPiece.col], selectedPiece.row, selectedPiece.col, row, col)) {
+          ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+          ctx.fillRect(col * squareSize, row * squareSize, squareSize, squareSize);
+        }
+
+        const piece = board[row][col];
+        if (piece) {
+          drawPiece(piece, col, row);
+        }
+      }
+    }
+  }
+
+  // Draw a piece
+  function drawPiece(piece, col, row) {
+    const x = col * squareSize + squareSize / 2;
+    const y = row * squareSize + squareSize / 2;
+    ctx.font = `${squareSize * 0.8}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = piece.color === 'white' ? '#fff' : '#000';
+    ctx.fillText(getPieceSymbol(piece.type), x, y);
+  }
+
+  // Get piece symbol
+  function getPieceSymbol(type) {
+    switch (type) {
+      case 'king': return '♔';
+      case 'queen': return '♕';
+      case 'rook': return '♖';
+      case 'bishop': return '♗';
+      case 'knight': return '♘';
+      case 'pawn': return '♙';
+      default: return '';
+    }
+  }
+
+  // Handle click events
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const col = Math.floor((e.clientX - rect.left) / squareSize);
+    const row = Math.floor((e.clientY - rect.top) / squareSize);
+
+    if (selectedPiece) {
+      animateMove(selectedPiece.row, selectedPiece.col, row, col);
+      selectedPiece = null;
+      if (turn === 'black') {
+        setTimeout(makeAIMove, 500); // AI makes a move after the player
+      }
+    } else {
+      const piece = board[row][col];
+      if (piece && piece.color === turn) {
+        selectedPiece = { row, col };
+      }
+    }
+    drawBoard();
+  });
+
+  // Animate piece movement
+  function animateMove(fromRow, fromCol, toRow, toCol) {
+    const piece = board[fromRow][fromCol];
+    if (!isValidMove(piece, fromRow, fromCol, toRow, toCol)) return;
+
+    const startX = fromCol * squareSize + squareSize / 2;
+    const startY = fromRow * squareSize + squareSize / 2;
+    const endX = toCol * squareSize + squareSize / 2;
+    const endY = toRow * squareSize + squareSize / 2;
+
+    let progress = 0;
+    const duration = 200; // Animation duration in milliseconds
+    const startTime = Date.now();
+
+    function step() {
+      const elapsed = Date.now() - startTime;
+      progress = Math.min(elapsed / duration, 1);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBoard();
+
+      const x = startX + (endX - startX) * progress;
+      const y = startY + (endY - startY) * progress;
+      ctx.font = `${squareSize * 0.8}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = piece.color === 'white' ? '#fff' : '#000';
+      ctx.fillText(getPieceSymbol(piece.type), x, y);
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        completeMove(fromRow, fromCol, toRow, toCol);
+      }
+    }
+
+    step();
+  }
+
+  // Complete the move after animation
+  function completeMove(fromRow, fromCol, toRow, toCol) {
+    const piece = board[fromRow][fromCol];
+    board[toRow][toCol] = piece;
+    board[fromRow][fromCol] = null;
+    turn = turn === 'white' ? 'black' : 'white';
+    moveHistory.push(`${piece.color} ${piece.type} moved to ${toRow},${toCol}`);
+    updateMoveLog();
+    drawBoard();
+  }
+
+  // Check if a move is valid
+  function isValidMove(piece, fromRow, fromCol, toRow, toCol) {
+    const dx = Math.abs(toCol - fromCol);
+    const dy = Math.abs(toRow - fromRow);
+
+    // Basic validation for pawns
+    if (piece.type === 'pawn') {
+      if (piece.color === 'white') {
+        return (dx === 0 && dy === 1) || (dy === 2 && fromRow === 6);
+      } else {
+        return (dx === 0 && dy === 1) || (dy === 2 && fromRow === 1);
+      }
+    }
+
+    // Add more rules for other pieces here
+    return true;
+  }
+
+  // Update move log
+  function updateMoveLog() {
+    moveLog.innerHTML = '';
+    moveHistory.forEach(move => {
+      const li = document.createElement('li');
+      li.textContent = move;
+      moveLog.appendChild(li);
+    });
+  }
+
+  // Restart the game
+  restartButton.addEventListener('click', () => {
+    initBoard();
+    turn = 'white';
+    moveHistory = [];
+    updateMoveLog();
+  });
+
+  // Undo the last move
+  undoButton.addEventListener('click', () => {
+    if (moveHistory.length > 0) {
+      moveHistory.pop();
+      turn = turn === 'white' ? 'black' : 'white';
+      initBoard(); // Reset board and reapply moves
+      updateMoveLog();
+    }
+  });
+
+  // Toggle theme
+  toggleThemeButton.addEventListener('click', () => {
+    document.body.classList.toggle('dark-theme');
+  });
+
+  // Dark theme styles
+  document.body.classList.add('light-theme');
+  const style = document.createElement('style');
+  style.innerHTML = `
+    .dark-theme {
+      background-color: #333;
+      color: #fff;
+    }
+    .dark-theme canvas {
+      background-color: #444;
+    }
+    .dark-theme .move-history {
+      background-color: #555;
+    }
+  `;
+  document.head.appendChild(style);
+
+  // AI Logic
+  function makeAIMove() {
+    const blackPieces = [];
+    for (let row = 0; row < boardSize; row++) {
+      for (let col = 0; col < boardSize; col++) {
+        const piece = board[row][col];
+        if (piece && piece.color === 'black') {
+          blackPieces.push({ piece, row, col });
+        }
+      }
+    }
+
+    const randomPiece = blackPieces[Math.floor(Math.random() * blackPieces.length)];
+    const possibleMoves = getPossibleMoves(randomPiece.piece, randomPiece.row, randomPiece.col);
+
+    if (possibleMoves.length > 0) {
+      const randomMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+      animateMove(randomPiece.row, randomPiece.col, randomMove.row, randomMove.col);
+    }
+  }
+
+  // Get possible moves for a piece
+  function getPossibleMoves(piece, row, col) {
+    const moves = [];
+    for (let r = 0; r < boardSize; r++) {
+      for (let c = 0; c < boardSize; c++) {
+        if (isValidMove(piece, row, col, r, c)) {
+          moves.push({ row: r, col: c });
+        }
+      }
+    }
+    return moves;
+  }
+
+  // Initialize the game
+  initBoard();
+</script>
+</body>
+</html>
